@@ -1,27 +1,26 @@
-import { useAuthStore } from "../../stores/useAuthStore";
-import { useNavigate } from "react-router-dom";
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import PatientDashboardLayout from "../../components/layouts/PatientDashboardLayout";
+
+import BrowseDoctors from "./Patient/BrowseDoctors";
+import Appointments from "./Patient/MyAppointments";
+import Profile from "./Patient/Profile";
+import PayForAppointment from "./Patient/PayForAppointment";
 
 const PatientDashboard = () => {
-  const logout = useAuthStore((state) => state.logout);
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">Patient Dashboard</h1>
-      <p className="mb-4">Welcome patient! ✅</p>
+    <Routes>
+      <Route element={<PatientDashboardLayout />}>
+        <Route index element={<Navigate to="browse-doctors" />} />
 
-      <button
-        onClick={handleLogout}
-        className="bg-red-500 text-white px-4 py-2 rounded-lg"
-      >
-        Logout
-      </button>
-    </div>
+        <Route path="browse-doctors" element={<BrowseDoctors />} />
+        <Route path="appointments" element={<Appointments />} />
+        <Route path="profile" element={<Profile />} />
+
+        {/* ⭐ REQUIRED PAYMENT ROUTE ⭐ */}
+        <Route path="pay/:appointmentId" element={<PayForAppointment />} />
+      </Route>
+    </Routes>
   );
 };
 
