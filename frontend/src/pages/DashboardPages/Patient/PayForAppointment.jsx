@@ -4,19 +4,23 @@ import { useParams, useNavigate } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import API from "../../../api/axios";
+import { getImageUrl } from "../../../utils/imageUrl";
 import toast from "react-hot-toast";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
+/* ------------------------------------------------------
+   CARD PAYMENT FORM (INSIDE STRIPE <Elements>)
+------------------------------------------------------ */
 function CheckoutInner({ appointment }) {
   const stripe = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
 
   const [clientSecret, setClientSecret] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
 
+  // Create payment intent
   useEffect(() => {
     const createIntent = async () => {
       try {
@@ -33,82 +37,116 @@ function CheckoutInner({ appointment }) {
         setClientSecret(data.clientSecret);
       } catch (err) {
         console.error(err);
-        toast.error(err?.response?.data?.message || "Failed to prepare payment");
+        toast.error("Failed to prepare payment.");
       }
     };
 
-    if (appointment) createIntent();
+    createIntent();
   }, [appointment, navigate]);
 
   const handlePay = async () => {
     if (!stripe || !elements || !clientSecret) return;
-
-    setLoading(true);
     setProcessing(true);
 
     try {
-      const cardElement = elements.getElement(CardElement);
-
+      const card = elements.getElement(CardElement);
       const res = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: cardElement },
+        payment_method: { card },
       });
 
       if (res.error) {
         toast.error(res.error.message || "Payment failed");
-        setLoading(false);
         setProcessing(false);
         return;
       }
 
-      // PAYMENT SUCCESS — webhook will update DB
-      if (res.paymentIntent && res.paymentIntent.status === "succeeded") {
-        toast.success(
-          "Payment received! Updating your appointment..."
-        );
-
-        // Give webhook time to update the DB
+      if (res.paymentIntent?.status === "succeeded") {
+        toast.success("Payment successful! Finalizing...");
         setTimeout(() => {
           navigate("/patient-dashboard/appointments");
         }, 1500);
       }
     } catch (err) {
-      console.error(err);
       toast.error("Payment failed");
+      console.error(err);
     } finally {
-      setLoading(false);
+      setProcessing(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded shadow">
-      <h2 className="text-xl font-semibold mb-4">Pay for Appointment</h2>
+    <div className="max-w-lg mx-auto mt-10 bg-white rounded-2xl shadow-xl p-8 border">
 
-      <div className="mb-4">
-        <div><strong>Doctor:</strong> {appointment.doctor?.name}</div>
-        <div><strong>Date:</strong> {new Date(appointment.date).toLocaleDateString()}</div>
-        <div><strong>Time:</strong> {appointment.startTime} - {appointment.endTime}</div>
-        <div><strong>Amount:</strong> ${appointment.amount?.toFixed(2)}</div>
+      {/* Doctor Info Section */}
+      <div className="flex items-center gap-4 mb-6 border-b pb-4">
+        <div className="w-16 h-16 rounded-full overflow-hidden shadow">
+          {appointment.doctor?.profilePic ? (
+            <img
+              src={getImageUrl(appointment.doctor.profilePic)}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-blue-600 text-white text-xl flex items-center justify-center">
+              {appointment.doctor?.name?.[0]}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold">Dr. {appointment.doctor?.name}</h3>
+          <p className="text-sm text-gray-600">{appointment.doctor?.specialization}</p>
+          <p className="text-xs text-gray-500">{appointment.doctor?.email}</p>
+        </div>
       </div>
 
-      <div className="mb-4">
-        <CardElement className="p-3 border rounded" />
+      {/* Appointment Summary */}
+      <div className="bg-gray-50 rounded-xl p-4 mb-6 text-sm">
+        <p><strong>Date:</strong> {new Date(appointment.date).toLocaleDateString()}</p>
+        <p><strong>Time:</strong> {appointment.startTime} - {appointment.endTime}</p>
+        <p><strong>Fee:</strong> ${appointment.amount?.toFixed(2)}</p>
+        {appointment.reason && (
+          <p><strong>Reason:</strong> {appointment.reason}</p>
+        )}
       </div>
 
+      {/* Stripe Card Input */}
+      <div className="p-4 border rounded-xl bg-white shadow-sm mb-6">
+        <CardElement
+          options={{
+            style: {
+              base: {
+                fontSize: "16px",
+                color: "#333",
+                "::placeholder": { color: "#aaa" },
+              },
+            },
+          }}
+        />
+      </div>
+
+      {/* Secure Payment Badge */}
+      <div className="text-center text-xs text-gray-500 mb-4">
+        🔒 Secure Payment — SSL Encrypted
+      </div>
+
+      {/* Pay Button */}
       <button
         onClick={handlePay}
-        disabled={!stripe || loading || processing}
-        className="w-full bg-blue-600 text-white p-3 rounded"
+        disabled={!stripe || processing}
+        className={`w-full py-3 rounded-lg text-white text-lg shadow transition 
+          ${processing ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
       >
         {processing
-          ? "Waiting for confirmation..."
-          : loading
-          ? "Processing..."
+          ? "Processing payment..."
           : `Pay $${appointment.amount?.toFixed(2)}`}
       </button>
     </div>
   );
 }
 
+/* ------------------------------------------------------
+   OUTER COMPONENT — Loads appointment & wraps in <Elements>
+------------------------------------------------------ */
 export default function PayForAppointment() {
   const { appointmentId } = useParams();
   const [appointment, setAppointment] = useState(null);
@@ -131,15 +169,14 @@ export default function PayForAppointment() {
         setAppointment(found);
       } catch (err) {
         toast.error("Failed to load appointment");
-        navigate("/patient-dashboard/appointments");
       }
     };
+
     load();
   }, [appointmentId, navigate]);
 
-  if (!appointment) {
-    return <div className="p-6">Loading...</div>;
-  }
+  if (!appointment)
+    return <p className="text-center p-6">Loading payment page…</p>;
 
   return (
     <Elements stripe={stripePromise}>

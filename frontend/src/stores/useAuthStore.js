@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { useSocketStore } from "./socketStore"; // ⬅️ NEW
+import { useSocketStore } from "./socketStore";
 
 export const useAuthStore = create(
   persist(
@@ -8,25 +8,37 @@ export const useAuthStore = create(
       user: null,
       token: null,
 
-      // LOGIN / SET AUTH
+      // -------------------------
+      // SET AUTH ON LOGIN
+      // -------------------------
       setAuth: (data) => {
         set({
           user: data.user,
           token: data.token,
         });
 
-        // ⬅️ CONNECT SOCKET AFTER LOGIN
+        // Connect socket after login
         useSocketStore.getState().connectSocket();
       },
 
+      // -------------------------
+      // UPDATE USER (Profile update)
+      // -------------------------
+      setUser: (updatedUser) =>
+        set((state) => ({
+          user: { ...state.user, ...updatedUser },
+        })),
+
+      // -------------------------
       // LOGOUT
+      // -------------------------
       logout: () => {
         set({
           user: null,
           token: null,
         });
 
-        // ⬅️ DISCONNECT SOCKET ON LOGOUT
+        // Disconnect socket on logout
         useSocketStore.getState().disconnectSocket();
       },
     }),

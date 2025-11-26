@@ -15,3 +15,10 @@ export const setAvailabilityApi = async (slots) => {
   const { data } = await axios.post("/doctor/availability", { slots });
   return data;
 };
+
+// Fetch single doctor by ID (public)
+export const getDoctorByIdApi = async (id) => {
+  const { data } = await axios.get(`/doctors/${id}`);
+  return data;
+};
+

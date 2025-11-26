@@ -27,4 +27,28 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET SINGLE DOCTOR (PUBLIC)
+router.get("/:id", async (req, res) => {
+  try {
+    const doctor = await User.findById(req.params.id)
+      .select("-password");
+
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    const availability = await DoctorAvailability.findOne({ doctor: doctor._id });
+
+    res.json({
+      ...doctor.toObject(),
+      slots: availability ? availability.slots : []
+    });
+
+  } catch (err) {
+    console.error("GET /api/doctors/:id error:", err);
+    res.status(500).json({ message: "Server error fetching doctor details" });
+  }
+});
+
+
 export default router;

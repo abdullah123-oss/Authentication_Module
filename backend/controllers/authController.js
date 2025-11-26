@@ -14,6 +14,12 @@ export const signup = async (req, res) => {
     if (!name || !email || !password || !role)
       return res.status(400).json({ message: "All fields are required." });
 
+    // ❌ Prevent admin signup from frontend
+    const allowedRoles = ["patient", "doctor"];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role." });
+    }
+
     // Password validation (min 8 chars + 1 upper, 1 lower, 1 number, 1 special)
     const passwordRegex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
@@ -124,6 +130,7 @@ export const resendOtp = async (req, res) => {
   }
 };
 
+
 // ---------------- LOGIN ----------------
 export const login = async (req, res) => {
   try {
@@ -132,35 +139,34 @@ export const login = async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ message: "Email and password are required." });
 
-    const user = await User.findOne({ email });
+    // get full user (exclude password)
+    const user = await User.findOne({ email }).select("-password");
     if (!user) return res.status(400).json({ message: "Invalid credentials." });
 
     if (!user.isVerified)
       return res.status(403).json({ message: "Please verify your email first." });
 
-    const isMatch = await comparePassword(password, user.password);
+    // compare with stored hashed password (we need the password for compare)
+    // fetch password separately if comparePassword expects it; simpler: fetch with password then remove it
+    const userWithPass = await User.findOne({ email });
+    const isMatch = await comparePassword(password, userWithPass.password);
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials." });
 
     const token = createToken({ id: user._id, role: user.role });
 
-    const userData = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    };
-
+    // send full user (already selected without password)
     res.json({
       message: "Login successful.",
       token,
-      user: userData,
+      user, // <- full user object (profilePic, specialization, etc. available)
     });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error during login." });
   }
 };
+
 
 // ---------------- FORGOT PASSWORD ----------------
 export const forgotPassword = async (req, res) => {

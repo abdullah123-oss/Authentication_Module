@@ -6,6 +6,7 @@ import BrowseDoctors from "./Patient/BrowseDoctors";
 import Appointments from "./Patient/MyAppointments";
 import Profile from "./Patient/Profile";
 import PayForAppointment from "./Patient/PayForAppointment";
+import DoctorDetails from "./Patient/DoctorDetails";
 
 const PatientDashboard = () => {
   return (
@@ -19,6 +20,11 @@ const PatientDashboard = () => {
 
         {/* ⭐ REQUIRED PAYMENT ROUTE ⭐ */}
         <Route path="pay/:appointmentId" element={<PayForAppointment />} />
+
+        <Route path="doctor/:id" element={<DoctorDetails />} />
+
+        
+
       </Route>
     </Routes>
   );

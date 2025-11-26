@@ -1,4 +1,5 @@
-import React, { useState, useEffect} from "react";
+// src/components/layouts/PatientDashboardLayout.jsx
+import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   FaBars,
@@ -11,6 +12,8 @@ import {
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useSocketStore } from "../../stores/socketStore";
 import { useNotificationStore } from "../../stores/notificationStore";
+import { getImageUrl } from "../../utils/imageUrl";
+import UserAvatar from "../UserAvatar";
 
 export default function PatientDashboardLayout() {
   const user = useAuthStore((s) => s.user);
@@ -31,15 +34,13 @@ export default function PatientDashboardLayout() {
   const connectSocket = useSocketStore((s) => s.connectSocket);
   const socket = useSocketStore((s) => s.socket);
 
-  const notifications = useNotificationStore((state) => state.notifications);
-  const unreadCount = useNotificationStore((state) => state.unreadCount);
-  const markAsRead = useNotificationStore((state) => state.markAsRead);
-  const markAllAsRead = useNotificationStore((state) => state.markAllAsRead);
-  const loadNotifications = useNotificationStore(
-    (state) => state.loadNotifications
-  );
+  const notifications = useNotificationStore((s) => s.notifications);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const markAsRead = useNotificationStore((s) => s.markAsRead);
+  const markAllAsRead = useNotificationStore((s) => s.markAllAsRead);
+  const loadNotifications = useNotificationStore((s) => s.loadNotifications);
   const initNotificationSocket = useNotificationStore(
-    (state) => state.initSocketListeners
+    (s) => s.initSocketListeners
   );
 
   useEffect(() => {
@@ -49,12 +50,12 @@ export default function PatientDashboardLayout() {
   useEffect(() => {
     if (!token) return;
     loadNotifications();
-  }, [token, loadNotifications]);
+  }, [token]);
 
   useEffect(() => {
     if (!socket) return;
     initNotificationSocket();
-  }, [socket, initNotificationSocket]);
+  }, [socket]);
 
   const handleNotificationClick = async (notif) => {
     if (!notif) return;
@@ -63,90 +64,120 @@ export default function PatientDashboardLayout() {
     setShowDropdown(false);
   };
 
+  const linkClasses =
+    "flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all";
 
-  const linkBaseClasses =
-    "flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm";
- 
   return (
     <div className="flex min-h-screen bg-gray-100 text-gray-800">
       {/* Sidebar */}
       <aside
-        className={`flex flex-col bg-blue-800 text-white shadow-xl transition-width duration-200
-          ${collapsed ? "w-20" : "w-64"}`}
+        className={`fixed left-0 top-0 h-screen flex flex-col bg-blue-800 text-white shadow-xl transition-all duration-300
+        ${collapsed ? "w-20" : "w-64"}`}
       >
+        {/* Logo + Toggle */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-blue-700">
-          <div className={`flex items-center gap-3 ${collapsed ? "justify-center w-full" : ""}`}>
-            <span className="text-2xl">🩺</span>
-            {!collapsed && <span className="text-lg font-bold">MedCare</span>}
-          </div>
+          {!collapsed && (
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🩺</span>
+              <span className="text-lg font-bold tracking-wide">MedCare</span>
+            </div>
+          )}
+          {collapsed && <span className="mx-auto text-2xl">🩺</span>}
 
-          {/* hamburger */}
           <button
-            aria-label="Toggle menu"
             onClick={toggleSidebar}
-            className="p-2 rounded hover:bg-blue-700/40"
+            className="p-2 rounded hover:bg-blue-700/40 transition"
           >
-            <FaBars />
+            <FaBars size={18} />
           </button>
         </div>
 
+        {/* Navigation */}
         <nav className="flex-1 px-2 py-6 space-y-2">
           <NavLink
             to="/patient-dashboard/browse-doctors"
             className={({ isActive }) =>
-              `${linkBaseClasses} ${isActive ? "bg-blue-600 font-semibold" : "hover:bg-blue-700/60"}`
+              `${linkClasses} ${
+                isActive ? "bg-blue-600 shadow font-semibold" : "hover:bg-blue-700/60"
+              }`
             }
           >
-            <FaSearch className="flex-shrink-0" />
+            <FaSearch />
             {!collapsed && <span>Browse Doctors</span>}
           </NavLink>
 
           <NavLink
             to="/patient-dashboard/appointments"
             className={({ isActive }) =>
-              `${linkBaseClasses} ${isActive ? "bg-blue-600 font-semibold" : "hover:bg-blue-700/60"}`
+              `${linkClasses} ${
+                isActive ? "bg-blue-600 shadow font-semibold" : "hover:bg-blue-700/60"
+              }`
             }
           >
-            <FaCalendarAlt className="flex-shrink-0" />
+            <FaCalendarAlt />
             {!collapsed && <span>My Appointments</span>}
           </NavLink>
 
           <NavLink
             to="/patient-dashboard/profile"
             className={({ isActive }) =>
-              `${linkBaseClasses} ${isActive ? "bg-blue-600 font-semibold" : "hover:bg-blue-700/60"}`
+              `${linkClasses} ${
+                isActive ? "bg-blue-600 shadow font-semibold" : "hover:bg-blue-700/60"
+              }`
             }
           >
-            <FaUser className="flex-shrink-0" />
+            <FaUser />
             {!collapsed && <span>Profile</span>}
           </NavLink>
         </nav>
 
-        <div className="px-3 py-4 border-t border-blue-700">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-md bg-red-500 hover:bg-red-600 transition-colors text-sm"
+        {/* Profile Footer */}
+        <div className="px-4 pb-6 pt-4 border-t border-blue-700">
+          {!collapsed && <p className="text-xs mb-3 opacity-80">Profile</p>}
+
+          <div
+            onClick={() => navigate("/patient-dashboard/profile")}
+            className="flex items-center gap-3 cursor-pointer hover:bg-blue-700/40 p-2 rounded-md transition"
           >
-            <FaSignOutAlt />
-            {!collapsed && <span>Logout</span>}
-          </button>
+            <UserAvatar user={user} />
+
+            {!collapsed && (
+              <div>
+                <div className="text-sm font-semibold">{user?.name}</div>
+                <div className="text-xs opacity-80">{user?.email}</div>
+              </div>
+            )}
+          </div>
+
+          {!collapsed && (
+            <button
+              onClick={handleLogout}
+              className="w-full mt-4 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition-colors text-sm"
+            >
+              <FaSignOutAlt />
+              Logout
+            </button>
+          )}
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content */}
+      <div
+        className={`flex-1 flex flex-col transition-all duration-300 ${
+          collapsed ? "ml-20" : "ml-64"
+        }`}
+      >
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between relative">
-          <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold text-gray-700">Patient Dashboard</h1>
-            <div className="hidden md:block text-sm text-gray-500">
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-semibold">Patient Dashboard</h1>
+            <p className="text-sm text-gray-500">
               Browse doctors & manage appointments
-            </div>
+            </p>
           </div>
 
-          {/* RIGHT SIDE */}
-          <div className="flex items-center gap-6 relative">
-            {/* NOTIFICATION */}
+          <div className="flex items-center gap-6">
+            {/* Notifications */}
             <div className="relative">
               <button
                 onClick={() => setShowDropdown((s) => !s)}
@@ -200,29 +231,20 @@ export default function PatientDashboardLayout() {
               )}
             </div>
 
-            <div className="text-right">
-              <div className="text-sm font-medium text-gray-700">{user?.name || "Patient"}</div>
+            <div className="hidden md:block text-right">
+              <div className="text-sm font-medium">{user?.name}</div>
               <div className="text-xs text-gray-500">Logged in</div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="hidden sm:inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-              aria-label="Logout"
-            >
-              <FaSignOutAlt />
-              <span className="text-sm">Logout</span>
-            </button>
           </div>
         </header>
 
-        {/* page content */}
-        <main className="flex-1 p-6 overflow-auto bg-gray-50">
+        {/* Page Content */}
+        <main className="flex-1 p-6 bg-gray-50 overflow-auto">
           <Outlet />
         </main>
 
-        {/* Footer */}
         <footer className="bg-white border-t border-gray-200 p-3 text-center text-gray-500 text-sm">
-          © {new Date().getFullYear()} MedCare Platform. All rights reserved.
+          © {new Date().getFullYear()} MedCare Platform
         </footer>
       </div>
     </div>

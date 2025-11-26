@@ -7,6 +7,7 @@ import {
 } from "../../../api/patientApi";
 import { useSocketStore } from "../../../stores/socketStore";
 import StatusBadge from "../../../components/StatusBadge";
+import { getImageUrl } from "../../../utils/imageUrl";
 
 export default function MyAppointments() {
   const navigate = useNavigate();
@@ -14,52 +15,48 @@ export default function MyAppointments() {
   const [loading, setLoading] = useState(false);
   const socket = useSocketStore((s) => s.socket);
 
-// SOCKET HANDLERS
-useEffect(() => {
-  if (!socket) return;
+  // -------------------------------
+  // SOCKET LISTENER
+  // -------------------------------
+  useEffect(() => {
+    if (!socket) return;
 
-  const handleUpdated = (appointment) => {
-    setAppointments((prev) =>
-      prev.map((a) => (a._id === appointment._id ? appointment : a))
-    );
+    const handleUpdated = (appointment) => {
+      setAppointments((prev) =>
+        prev.map((a) => (a._id === appointment._id ? appointment : a))
+      );
 
-    // 🔥 1) APPROVED → redirect to payment
-    if (
-      appointment.status === "approved" ||
-      appointment.status === "pending_payment"
-    ) {
-      toast.success("Doctor approved! Redirecting to payment...");
-      setTimeout(() => {
-        navigate(`/patient-dashboard/pay/${appointment._id}`);
-      }, 800);
-    }
+      if (
+        appointment.status === "approved" ||
+        appointment.status === "pending_payment"
+      ) {
+        toast.success("Doctor approved! Redirecting to payment...");
+        setTimeout(() => {
+          navigate(`/patient-dashboard/pay/${appointment._id}`);
+        }, 800);
+      }
 
-    // 🔥 2) REJECTED
-    if (appointment.status === "rejected") {
-      toast.error("Doctor rejected your appointment.");
-    }
+      if (appointment.status === "rejected") {
+        toast.error("Doctor rejected your appointment.");
+      }
 
-    // 🔥 3) PAYMENT SUCCESS
-    if (appointment.status === "booked" && appointment.paymentStatus === "paid") {
-      toast.success("Payment successful!");
-    }
+      if (appointment.status === "booked" && appointment.paymentStatus === "paid") {
+        toast.success("Payment successful!");
+      }
 
-    // 🔥 4) CANCELLED
-    if (appointment.status === "cancelled") {
-      toast("Appointment cancelled", { icon: "⚠️" });
-    }
-  };
+      if (appointment.status === "cancelled") {
+        toast("Appointment cancelled", { icon: "⚠️" });
+      }
+    };
 
-  socket.on("appointment:updated", handleUpdated);
+    socket.on("appointment:updated", handleUpdated);
 
-  return () => {
-    socket.off("appointment:updated", handleUpdated);
-  };
-}, [socket, navigate]);
+    return () => socket.off("appointment:updated", handleUpdated);
+  }, [socket, navigate]);
 
-  // ----------------------------------------
+  // -------------------------------
   // FETCH APPOINTMENTS
-  // ----------------------------------------
+  // -------------------------------
   const fetchAppointments = async () => {
     try {
       setLoading(true);
@@ -76,9 +73,9 @@ useEffect(() => {
     fetchAppointments();
   }, []);
 
-  // ----------------------------------------
-  // CANCEL
-  // ----------------------------------------
+  // -------------------------------
+  // CANCEL APPOINTMENT
+  // -------------------------------
   const handleCancel = async (id) => {
     if (!window.confirm("Cancel this appointment?")) return;
 
@@ -90,78 +87,116 @@ useEffect(() => {
     }
   };
 
+  // -------------------------------
+  // UI RENDER
+  // -------------------------------
   return (
-    <div className="p-6">
-      <h2 className="text-xl font-semibold mb-4">My Appointments</h2>
+    <div>
+      <h2 className="text-2xl font-semibold mb-6">My Appointments</h2>
 
       {loading ? (
         <p>Loading...</p>
+      ) : appointments.length === 0 ? (
+        <p className="text-gray-600">No appointments yet.</p>
       ) : (
-        <table className="min-w-full bg-white border rounded">
-          <thead>
-            <tr>
-              <th className="border p-2">Date</th>
-              <th className="border p-2">Time</th>
-              <th className="border p-2">Doctor</th>
-              <th className="border p-2">Status</th>
-              <th className="border p-2">Actions</th>
-            </tr>
-          </thead>
+        <div className="space-y-5">
+          {appointments.map((appt) => (
+            <div
+              key={appt._id}
+              className="bg-white p-5 rounded-xl shadow-md border hover:shadow-lg transition"
+            >
+              <div className="flex items-start gap-4">
+                
+                {/* Doctor Profile Image */}
+                <div className="w-16 h-16 rounded-full overflow-hidden shadow">
+                  {appt.doctor?.profilePic ? (
+                    <img
+                      src={getImageUrl(appt.doctor.profilePic)}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white text-xl">
+                      {appt.doctor?.name?.[0]}
+                    </div>
+                  )}
+                </div>
 
-          <tbody>
-            {appointments.map((appt) => (
-              <tr key={appt._id} className="text-center">
-                <td className="border p-2">
-                  {new Date(appt.date).toLocaleDateString()}
-                </td>
+                {/* Main details */}
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold">
+                    Dr. {appt.doctor?.name}
+                  </h3>
+                  <p className="text-gray-600">
+                    {appt.doctor?.specialization || "General Physician"}
+                  </p>
 
-                <td className="border p-2">
-                  {appt.startTime} - {appt.endTime}
-                </td>
+                  <p className="mt-1 text-sm text-gray-500">
+                    <strong>Date:</strong>{" "}
+                    {new Date(appt.date).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
 
-                <td className="border p-2">{appt.doctor?.name}</td>
+                  <p className="text-sm text-gray-500">
+                    <strong>Time:</strong> {appt.startTime} - {appt.endTime}
+                  </p>
 
-                <td className="border p-2">
-                  <StatusBadge status={appt.status} />
-                </td>
+                  {appt.reason && (
+                    <p className="text-sm text-gray-700 mt-1">
+                      <strong>Reason:</strong> {appt.reason}
+                    </p>
+                  )}
 
-                <td className="border p-2">
-                  {/* REJECTED */}
-                  {appt.status === "rejected" && <span>No actions</span>}
+                  <div className="mt-2">
+                    <StatusBadge status={appt.status} />
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex flex-col gap-2">
+
+                  {/* Rejected */}
+                  {appt.status === "rejected" && (
+                    <span className="text-gray-500 text-sm">No actions</span>
+                  )}
 
                   {/* pending_approval */}
                   {appt.status === "pending_approval" && (
-                    <button disabled className="bg-gray-400 text-white px-3 py-1 rounded">
+                    <button
+                      disabled
+                      className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md"
+                    >
                       Waiting Approval
                     </button>
                   )}
 
-                  {/* pending_payment: show Pay */}
+                  {/* pending_payment */}
                   {appt.status === "pending_payment" && (
                     <button
-                      onClick={() =>
-                        navigate(`/patient-dashboard/pay/${appt._id}`)
-                      }
-                      className="bg-blue-600 text-white px-3 py-1 rounded"
+                      onClick={() => navigate(`/patient-dashboard/pay/${appt._id}`)}
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
                     >
                       Pay Now
                     </button>
                   )}
 
-                  {/* booked → cancel */}
+                  {/* booked */}
                   {appt.status === "booked" && (
                     <button
                       onClick={() => handleCancel(appt._id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded"
+                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md"
                     >
                       Cancel
                     </button>
                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

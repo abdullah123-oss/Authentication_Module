@@ -1,5 +1,5 @@
+// src/pages/DashboardPages/Patient/BrowseDoctors.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -7,8 +7,10 @@ import { getAllDoctorsApi } from "../../../api/doctorApi";
 import { getDoctorAppointmentsApi } from "../../../api/appointmentApi";
 import { bookAppointmentApi } from "../../../api/patientApi";
 
+import DoctorCard from "../../../components/DoctorCard";
+
 /* --------------------------------------------
-   Helper: Generate time slots inside a range
+   Helper: Generate time slots
 --------------------------------------------- */
 function generateSlots(start, end, durationMinutes) {
   const slots = [];
@@ -26,11 +28,7 @@ function generateSlots(start, end, durationMinutes) {
     if (next > endDt) break;
 
     const fmt = (d) => d.toTimeString().slice(0, 5);
-
-    slots.push({
-      start: fmt(startDt),
-      end: fmt(next),
-    });
+    slots.push({ start: fmt(startDt), end: fmt(next) });
 
     startDt.setTime(next.getTime());
   }
@@ -59,7 +57,7 @@ export default function BrowseDoctors() {
   const [confirming, setConfirming] = useState(false);
 
   /* --------------------------------------------
-     Fetch all doctors with availability
+     Fetch all doctors
   --------------------------------------------- */
   useEffect(() => {
     const loadDoctors = async () => {
@@ -78,7 +76,7 @@ export default function BrowseDoctors() {
   }, []);
 
   /* --------------------------------------------
-     Generate time slots when doctor/date changes
+     Generate slots when doctor/date changes
   --------------------------------------------- */
   useEffect(() => {
     const buildSlots = async () => {
@@ -92,9 +90,9 @@ export default function BrowseDoctors() {
         weekday: "long",
       });
 
-      const dayObj = (selectedDoctor.slots || []).find((s) => s.day === weekday);
+      const dayObj = selectedDoctor.slots?.find((s) => s.day === weekday);
 
-      if (!dayObj || !dayObj.times || dayObj.times.length === 0) {
+      if (!dayObj || !dayObj.times.length) {
         setGeneratedSlots([]);
         return;
       }
@@ -105,6 +103,7 @@ export default function BrowseDoctors() {
         allSlots = allSlots.concat(slots);
       }
 
+      // Fetch booked appointments for that date
       try {
         const res = await getDoctorAppointmentsApi(selectedDoctor._id, selectedDate);
         const appts = res.appointments || [];
@@ -113,7 +112,7 @@ export default function BrowseDoctors() {
         setBookedSlots(booked);
       } catch (err) {
         console.error(err);
-        toast.error("Could not load bookings for this doctor");
+        toast.error("Could not load booked slots");
       }
 
       setGeneratedSlots(allSlots);
@@ -123,7 +122,7 @@ export default function BrowseDoctors() {
   }, [selectedDoctor, selectedDate, slotDuration]);
 
   /* --------------------------------------------
-     Open modal for selected doctor
+     Open Booking Modal
   --------------------------------------------- */
   const openBooking = (doctor) => {
     setSelectedDoctor(doctor);
@@ -135,11 +134,11 @@ export default function BrowseDoctors() {
   };
 
   /* --------------------------------------------
-     CONFIRM BOOKING (pending_approval)
---------------------------------------------- */
+     Confirm Booking
+  --------------------------------------------- */
   const handleConfirm = async () => {
     if (!selectedSlot) {
-      toast.error("Please select a time slot.");
+      toast.error("Please select a slot.");
       return;
     }
 
@@ -153,19 +152,10 @@ export default function BrowseDoctors() {
         reason: patientNote,
       });
 
-      const appointment = res.appointment;
-      const appointmentId = res.appointmentId;
-
-      // close modal and blur
+      toast.success("Appointment created! Awaiting approval.");
       setSelectedDoctor(null);
 
-      toast.success("Appointment created! Waiting for doctor approval.");
-
-      // NO slot blocking → pending_approval shouldn't block slots visually
-
-      // redirect to patient appointment list
       navigate("/patient-dashboard/appointments");
-
     } catch (err) {
       console.error(err);
       toast.error(err?.response?.data?.message || "Booking failed");
@@ -175,73 +165,48 @@ export default function BrowseDoctors() {
   };
 
   /* ====================================================
-                      UI RENDER
+                      UI
   ===================================================== */
   return (
     <div>
-      <h2 className="text-2xl font-semibold mb-6">Browse Doctors</h2>
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Browse Doctors</h2>
 
       {/* Doctor Cards */}
       {loading ? (
-        <p>Loading doctors...</p>
+        <p>Loading...</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {doctors.map((doc) => (
-            <div
+            <DoctorCard
               key={doc._id}
-              className="p-5 rounded-xl bg-white shadow-md hover:shadow-lg transition"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold">{doc.name}</h3>
-                  <p className="text-gray-600">{doc.email}</p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {doc.bio || "No bio available."}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-400">
-                    {doc.specialization || "Doctor"}
-                  </div>
-                  <div className="mt-2 text-sm text-gray-700 font-semibold">
-                    ${doc.price ?? "20"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={() => openBooking(doc)}
-                  className="ml-auto bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
-                >
-                  Book Appointment
-                </button>
-              </div>
-            </div>
+              doctor={doc}
+              onBook={(d) => openBooking(d)}
+              onView={() => navigate(`/patient-dashboard/doctor/${doc._id}`)}
+            />
           ))}
         </div>
       )}
 
-      {/* Booking Popup Modal */}
+      {/* BOOKING MODAL */}
       {selectedDoctor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-6">
-          <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border animate-[fadeIn_0.25s_ease] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur p-6">
+          <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl border overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+            <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white flex justify-between items-center">
               <h3 className="text-lg font-semibold">
                 Book Appointment — Dr. {selectedDoctor.name}
               </h3>
               <button
                 onClick={() => setSelectedDoctor(null)}
-                className="text-white hover:text-gray-300 text-xl"
+                className="text-white text-xl hover:text-gray-200"
               >
                 ✕
               </button>
             </div>
 
-            {/* Content */}
+            {/* Modal Content */}
             <div className="px-6 py-5 max-h-[75vh] overflow-y-auto">
-              {/* Date + Duration Row */}
+              {/* Date + Duration */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
                   <label className="text-sm font-medium">Select Date</label>
@@ -249,7 +214,7 @@ export default function BrowseDoctors() {
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="mt-1 border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500"
+                    className="mt-1 border rounded-lg px-3 py-2 w-full focus:ring-blue-500 focus:ring-2"
                   />
                 </div>
 
@@ -258,7 +223,7 @@ export default function BrowseDoctors() {
                   <select
                     value={slotDuration}
                     onChange={(e) => setSlotDuration(Number(e.target.value))}
-                    className="mt-1 border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500"
+                    className="mt-1 border rounded-lg px-3 py-2 w-full focus:ring-blue-500 focus:ring-2"
                   >
                     <option value={15}>15 minutes</option>
                     <option value={30}>30 minutes</option>
@@ -268,7 +233,7 @@ export default function BrowseDoctors() {
 
                 <div className="flex flex-col justify-end">
                   <p className="text-sm text-gray-600">
-                    <strong>Weekly Availability: </strong>
+                    <strong>Availability:</strong>{" "}
                     {selectedDoctor.slots?.length ? (
                       <span className="text-green-600">Available</span>
                     ) : (
@@ -280,12 +245,12 @@ export default function BrowseDoctors() {
 
               {/* Slots */}
               <div className="mb-6">
-                <h4 className="text-md font-semibold mb-2">Available Slots</h4>
+                <h4 className="font-semibold mb-2">Available Slots</h4>
 
                 {!selectedDate ? (
-                  <p className="text-gray-500 text-sm">Select a date to view slots.</p>
+                  <p className="text-gray-500">Select a date.</p>
                 ) : generatedSlots.length === 0 ? (
-                  <p className="text-red-500 text-sm">No available slots on this date.</p>
+                  <p className="text-red-500">No slots for this date.</p>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                     {generatedSlots.map((slot) => {
@@ -295,8 +260,8 @@ export default function BrowseDoctors() {
                         <button
                           key={slot.start}
                           disabled={isBooked}
-                          onClick={() => !isBooked && setSelectedSlot(slot)}
-                          className={`p-3 rounded-lg border text-sm transition shadow-sm
+                          onClick={() => setSelectedSlot(slot)}
+                          className={`p-3 rounded-lg border text-sm transition 
                             ${
                               isBooked
                                 ? "bg-gray-200 text-gray-500 cursor-not-allowed"
@@ -316,17 +281,17 @@ export default function BrowseDoctors() {
 
               {/* Booking Details */}
               <div className="border-t pt-5">
-                <h4 className="text-md font-semibold mb-3">Booking Details</h4>
+                <h4 className="font-semibold mb-3">Booking Details</h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium">Selected Slot</label>
                     <div className="mt-1 p-3 bg-gray-100 rounded-lg">
                       {selectedSlot ? (
-                        <span>
-                          {selectedSlot.start} - {selectedSlot.end} on{" "}
+                        <>
+                          {selectedSlot.start} – {selectedSlot.end} on{" "}
                           <strong>{selectedDate}</strong>
-                        </span>
+                        </>
                       ) : (
                         <span className="text-gray-500">No slot selected</span>
                       )}
@@ -334,7 +299,7 @@ export default function BrowseDoctors() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium">Reason / Note</label>
+                    <label className="text-sm font-medium">Note / Reason</label>
                     <input
                       type="text"
                       value={patientNote}

@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useEffect } from "react";
-import { useSocketStore } from "./stores/socketStore";   // ⬅️ NEW
+import { useSocketStore } from "./stores/socketStore";
 
 // Protected Routes
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -19,12 +19,13 @@ import ResetPassword from "./pages/AuthPages/ResetPassword";
 // Dashboards
 import PatientDashboard from "./pages/DashboardPages/PatientDashboard";
 import DoctorDashboard from "./pages/DashboardPages/DoctorDashboard";
+import AdminDashboard from "./pages/DashboardPages/AdminDashboard";   // ✅ NEW IMPORT
 
 function App() {
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
 
-  // ⬅️ Auto-connect socket after refresh
+  // Auto-connect socket after refresh
   useEffect(() => {
     if (token) {
       useSocketStore.getState().connectSocket();
@@ -44,12 +45,12 @@ function App() {
           path="/signup"
           element={token && user ? <Navigate to={redirectToDashboard()} /> : <Signup />}
         />
+
         <Route
           path="/login"
           element={token && user ? <Navigate to={redirectToDashboard()} /> : <Login />}
         />
 
-        <Route path="/auth/login" element={<Login />} />
         <Route path="/verify-otp" element={<VerifyOtp />} />
         <Route path="/forgot-password" element={<ForgetPassword />} />
         <Route path="/verify-reset-otp" element={<VerifyResetOtp />} />
@@ -57,17 +58,26 @@ function App() {
 
         {/* ---------- Protected Dashboards ---------- */}
         <Route element={<ProtectedRoute />}>
-          {/* Patient */}
+
+          {/* Patient Dashboard */}
           <Route element={<RoleProtectedRoute allowedRoles={["patient"]} />}>
             <Route path="/patient-dashboard/*" element={<PatientDashboard />} />
           </Route>
 
-          {/* Doctor */}
+          {/* Doctor Dashboard */}
           <Route element={<RoleProtectedRoute allowedRoles={["doctor"]} />}>
             <Route path="/doctor-dashboard/*" element={<DoctorDashboard />} />
           </Route>
+
+          {/* Admin Dashboard */}
+          <Route element={<RoleProtectedRoute allowedRoles={["admin"]} />}>
+            <Route path="/admin-dashboard/*" element={<AdminDashboard />} /> 
+            {/* 👆 IMPORTANT: use /admin-dashboard just like other dashboards */}
+          </Route>
+
         </Route>
 
+        {/* Redirect all unknown routes */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
 

@@ -15,7 +15,9 @@ import publicDoctorRoutes from "./routes/publicDoctorRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import { stripeWebhookHandler } from "./controllers/paymentController.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
-
+import profileRoutes from "./routes/profileRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import { seedAdmin } from "./seed/adminSeeder.js"; 
 
 dotenv.config();
 
@@ -32,6 +34,10 @@ app.post(
 app.use(cors());
 app.use(express.json());
 
+// Serve static uploaded images
+app.use("/uploads", express.static("uploads"));
+
+
 /* ---------- API routes ---------- */
 app.use("/api/auth", authRoutes);
 app.use("/api/test", testRoutes);
@@ -43,6 +49,10 @@ app.use("/api/notifications", notificationRoutes);
 app.get("/", (req, res) => {
   res.send("Auth API is running...");
 });
+
+app.use("/api/profile", profileRoutes);
+app.use("/api/admin", adminRoutes);
+seedAdmin(); // Seed admin user if not exists
 
 /* ---------- HTTP + Socket.IO server ---------- */
 const server = http.createServer(app);
