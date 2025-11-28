@@ -8,8 +8,14 @@ export const useAuthStore = create(
       user: null,
       token: null,
 
+      // NEW → Tracks if Zustand finished loading data from storage
+      hydrated: false,
+
+      // Called by persist middleware when store is ready
+      setHydrated: () => set({ hydrated: true }),
+
       // -------------------------
-      // SET AUTH ON LOGIN
+      // LOGIN + SET AUTH
       // -------------------------
       setAuth: (data) => {
         set({
@@ -17,12 +23,12 @@ export const useAuthStore = create(
           token: data.token,
         });
 
-        // Connect socket after login
+        // Connect socket
         useSocketStore.getState().connectSocket();
       },
 
       // -------------------------
-      // UPDATE USER (Profile update)
+      // UPDATE USER
       // -------------------------
       setUser: (updatedUser) =>
         set((state) => ({
@@ -38,13 +44,17 @@ export const useAuthStore = create(
           token: null,
         });
 
-        // Disconnect socket on logout
         useSocketStore.getState().disconnectSocket();
       },
     }),
     {
       name: "auth-storage",
       getStorage: () => localStorage,
+
+      // 🔥 Called when rehydration happens
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated();
+      },
     }
   )
 );

@@ -1,3 +1,4 @@
+// AdminHome.jsx
 import React, { useEffect, useState } from "react";
 import API from "../../../api/axios";
 
@@ -12,7 +13,8 @@ export default function AdminHome() {
     load();
   }, []);
 
-  if (!stats) return <p>Loading stats...</p>;
+  if (!stats)
+    return <p className="text-center text-gray-500 py-10">Loading stats...</p>;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -25,9 +27,9 @@ export default function AdminHome() {
 
 function StatCard({ label, value }) {
   return (
-    <div className="p-6 bg-white shadow-lg rounded-xl text-center border">
-      <h2 className="text-2xl font-bold text-indigo-700">{value}</h2>
-      <p className="text-gray-600">{label}</p>
+    <div className="bg-white/90 backdrop-blur shadow-xl rounded-xl p-6 text-center border hover:shadow-2xl transition">
+      <h2 className="text-3xl font-bold text-indigo-700">{value}</h2>
+      <p className="text-gray-500 mt-1">{label}</p>
     </div>
   );
 }
