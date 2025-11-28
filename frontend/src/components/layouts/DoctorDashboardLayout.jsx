@@ -8,7 +8,9 @@ import {
   FaUserMd,
   FaSignOutAlt,
   FaBell,
+  FaPills,            // ✅ ADD THIS
 } from "react-icons/fa";
+
 
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useSocketStore } from "../../stores/socketStore";
@@ -161,6 +163,19 @@ export default function DoctorDashboardLayout() {
             <FaUserMd />
             {!collapsed && <span>Profile</span>}
           </NavLink>
+
+          <NavLink
+  to="/doctor-dashboard/medicines"
+  className={({ isActive }) =>
+    `${linkBaseClasses} ${
+      isActive ? "bg-blue-600 font-semibold" : "hover:bg-blue-700/60"
+    }`
+  }
+>
+  <FaPills />
+  {!collapsed && <span>Medicines</span>}
+</NavLink>
+
         </nav>
 
         {/* PROFILE FOOTER */}

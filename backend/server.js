@@ -19,6 +19,7 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import publicMedicineRoutes from "./routes/medicineRoutes.js";
 
 import { stripeWebhookHandler } from "./controllers/paymentController.js";
 
@@ -51,6 +52,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/medicines", publicMedicineRoutes);
 
 app.get("/", (req, res) => {
   res.send("MedCare Backend API is running...");

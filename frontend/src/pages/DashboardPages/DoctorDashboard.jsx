@@ -5,6 +5,8 @@ import MySchedule from "./Doctor/MySchedule";
 import Appointments from "./Doctor/Appointments";
 import Profile from "./Doctor/Profile";
 import { Routes, Route, Navigate } from "react-router-dom";
+import DoctorMedicines from "./Doctor/DoctorMedicines";
+import DoctorMedicineDetails from "./Doctor/DoctorMedicineDetails";
 
 const DoctorDashboard = () => {
   return (
@@ -14,6 +16,8 @@ const DoctorDashboard = () => {
         <Route path="myschedule" element={<MySchedule />} />
         <Route path="appointments" element={<Appointments />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="medicines" element={<DoctorMedicines />} />
+        <Route path="medicines/:id" element={<DoctorMedicineDetails />} />
       </Route>
     </Routes>
   );
