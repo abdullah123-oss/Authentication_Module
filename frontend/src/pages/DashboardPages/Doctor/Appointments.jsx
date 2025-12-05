@@ -6,6 +6,8 @@ import {
   rejectAppointmentApi,
   cancelAppointmentApi,
 } from "../../../api/appointmentApi";
+import { downloadAppointmentInvoiceApi } from "../../../api/invoiceApi";
+import fileDownload from "js-file-download";
 
 import { useSocketStore } from "../../../stores/socketStore";
 import StatusBadge from "../../../components/StatusBadge";
@@ -88,6 +90,22 @@ export default function Appointments() {
       toast.success("Appointment cancelled");
     } catch {
       toast.error("Cancel failed");
+    }
+  };
+
+  const handleDownloadInvoice = async (appointment) => {
+    try {
+      const res = await downloadAppointmentInvoiceApi(
+        appointment._id,
+        appointment.invoiceNumber
+      );
+      fileDownload(
+        res.data,
+        `AppointmentReceipt-${appointment.invoiceNumber || appointment._id}.pdf`
+      );
+      toast.success("Invoice downloaded");
+    } catch {
+      toast.error("Download failed!");
     }
   };
 
@@ -181,12 +199,22 @@ export default function Appointments() {
                 )}
 
                 {appt.status === "booked" && (
-                  <button
-                    onClick={() => cancel(appt._id)}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg"
-                  >
-                    Cancel
-                  </button>
+                  <>
+                    {appt.paymentStatus === "paid" && (
+                      <button
+                        onClick={() => handleDownloadInvoice(appt)}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                      >
+                        Download Invoice
+                      </button>
+                    )}
+                    <button
+                      onClick={() => cancel(appt._id)}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg"
+                    >
+                      Cancel
+                    </button>
+                  </>
                 )}
               </div>
             </div>

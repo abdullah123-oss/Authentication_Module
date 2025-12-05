@@ -8,6 +8,9 @@ import {
 import { useSocketStore } from "../../../stores/socketStore";
 import StatusBadge from "../../../components/StatusBadge";
 import { getImageUrl } from "../../../utils/imageUrl";
+import fileDownload from "js-file-download";
+import { downloadAppointmentInvoiceApi } from "../../../api/invoiceApi";
+
 
 export default function MyAppointments() {
   const navigate = useNavigate();
@@ -84,6 +87,22 @@ export default function MyAppointments() {
       toast.success("Appointment cancelled");
     } catch {
       toast.error("Failed to cancel");
+    }
+  };
+
+  const handleDownloadReceipt = async (appointment) => {
+    try {
+      const res = await downloadAppointmentInvoiceApi(
+        appointment._id,
+        appointment.invoiceNumber
+      );
+      fileDownload(
+        res.data,
+        `AppointmentReceipt-${appointment.invoiceNumber || appointment._id}.pdf`
+      );
+      toast.success("Receipt downloaded");
+    } catch {
+      toast.error("Download failed!");
     }
   };
 
@@ -183,14 +202,22 @@ export default function MyAppointments() {
                     </button>
                   )}
 
-                  {/* booked */}
-                  {appt.status === "booked" && (
-                    <button
-                      onClick={() => handleCancel(appt._id)}
-                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md"
-                    >
-                      Cancel
-                    </button>
+                  {/* booked & paid → show download */}
+                  {appt.status === "booked" && appt.paymentStatus === "paid" && (
+                    <>
+                      <button
+                        onClick={() => handleDownloadReceipt(appt)}
+                        className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md"
+                      >
+                        Download Receipt
+                      </button>
+                      <button
+                        onClick={() => handleCancel(appt._id)}
+                        className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md"
+                      >
+                        Cancel
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

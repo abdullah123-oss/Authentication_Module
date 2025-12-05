@@ -15,6 +15,12 @@ const OrderSchema = new mongoose.Schema({
   paymentStatus: { type: String, default: "unpaid" }, // paid/unpaid
   paymentInfo: Object,
   orderStatus: { type: String, default: "pending" }, // pending/processing/shipped/delivered
+
+  //Finance Info
+  invoiceNumber: { type: String },
+  transactionId: { type: String },
+  paidAt: { type: Date },
+
 }, { timestamps: true });
 
 export default mongoose.model("Order", OrderSchema);

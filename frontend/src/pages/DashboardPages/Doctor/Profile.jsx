@@ -202,7 +202,7 @@ const DoctorProfile = () => {
 
         <p className="flex justify-between">
           <span className="font-medium">Consultation Fee:</span>
-          <span>{form.consultationFee ? `$${form.consultationFee}` : "Not set"}</span>
+          <span>{form.consultationFee ? `Rs ${form.consultationFee}` : "Not set"}</span>
         </p>
       </div>
     </div>

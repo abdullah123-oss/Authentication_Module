@@ -69,11 +69,11 @@ export const bookAppointment = async (req, res) => {
     if (exists)
       return res.status(400).json({ message: "This slot is already booked." });
 
-    // 3) Determine amount
+    // 3) Determine amount (use provided amount or doctor's consultationFee)
     let finalAmount = amount;
     if (!finalAmount) {
-      const doc = await User.findById(doctorId).select("price");
-      finalAmount = doc?.price || 20;
+      const doc = await User.findById(doctorId).select("consultationFee");
+      finalAmount = doc?.consultationFee || 0;
     }
 
     // 4) CREATE appointment with pending_approval

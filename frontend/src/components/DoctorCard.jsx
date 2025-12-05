@@ -44,7 +44,7 @@ export default function DoctorCard({ doctor, onBook, onView }) {
           <p className="mt-1 text-gray-700 text-sm">
             Fee:{" "}
             <span className="font-semibold text-gray-900">
-              ${doctor.consultationFee || 20}
+              Rs {doctor.consultationFee || 2000}
             </span>
           </p>
         </div>

@@ -80,7 +80,7 @@ export default function DoctorDetails() {
               </div>
 
               <div className="px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-medium">
-                Fee: ${doctor.consultationFee || 20}
+                Fee: Rs {doctor.consultationFee || 20}
               </div>
 
               <div className="px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-medium flex items-center gap-2">

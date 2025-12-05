@@ -103,7 +103,7 @@ function CheckoutInner({ appointment }) {
       <div className="bg-gray-50 rounded-xl p-4 mb-6 text-sm">
         <p><strong>Date:</strong> {new Date(appointment.date).toLocaleDateString()}</p>
         <p><strong>Time:</strong> {appointment.startTime} - {appointment.endTime}</p>
-        <p><strong>Fee:</strong> ${appointment.amount?.toFixed(2)}</p>
+        <p><strong>Fee:</strong> Rs {appointment.amount?.toFixed(2)}</p>
         {appointment.reason && (
           <p><strong>Reason:</strong> {appointment.reason}</p>
         )}
@@ -138,7 +138,7 @@ function CheckoutInner({ appointment }) {
       >
         {processing
           ? "Processing payment..."
-          : `Pay $${appointment.amount?.toFixed(2)}`}
+          : `Pay Rs ${appointment.amount?.toFixed(2)}`}
       </button>
     </div>
   );

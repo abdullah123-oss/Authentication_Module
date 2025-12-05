@@ -1,8 +1,12 @@
 // backend/server.js
+
+// Load environment variables
+import dotenv from "dotenv";
+dotenv.config();``
+
 import express from "express";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
-import dotenv from "dotenv";
 import cors from "cors";
 import bodyParser from "body-parser";
 
@@ -20,11 +24,11 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import publicMedicineRoutes from "./routes/medicineRoutes.js";
-
+import cartRoutes from "./routes/cartRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
 import { stripeWebhookHandler } from "./controllers/paymentController.js";
-
-// Load environment variables
-dotenv.config();
+import adminOrderRoutes from "./routes/adminOrderRoutes.js";
+import invoiceRoutes from "./routes/invoiceRoutes.js";
 
 const app = express();
 
@@ -53,6 +57,10 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/medicines", publicMedicineRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/admin/orders", adminOrderRoutes);
+app.use("/api/invoices", invoiceRoutes);
 
 app.get("/", (req, res) => {
   res.send("MedCare Backend API is running...");
@@ -89,6 +97,8 @@ io.on("connection", (socket) => {
 
 /* ------------------ START SERVER AFTER DB CONNECTS ------------------ */
 const PORT = process.env.PORT || 5000;
+
+//console.log("Mongo URI =", process.env.MONGO_URI);
 
 connectDB()
   .then(async () => {

@@ -2,6 +2,7 @@ import express from "express";
 import { verifyToken, authorizeRoles } from "../middlewares/authMiddleware.js";
 
 import { getStats } from "../controllers/admin/adminStatsController.js";
+import { getFinanceDashboard } from "../controllers/admin/adminFinanceController.js";
 import { getAllUsers, deleteUser } from "../controllers/admin/adminUserController.js";
 
 import {
@@ -21,6 +22,7 @@ router.use(verifyToken, authorizeRoles("admin"));
 
 // Dashboard statistics
 router.get("/stats", getStats);
+router.get("/finance/dashboard", getFinanceDashboard);
 
 // Manage users
 router.get("/users", getAllUsers);

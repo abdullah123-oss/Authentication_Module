@@ -5,10 +5,12 @@ import AdminDashboardLayout from "../../components/layouts/AdminDashboardLayout"
 import AdminHome from "./Admin/AdminHome";
 import ManageUsers from "./Admin/ManageUsers";
 
-// NEW: Medicine Pages
 import AdminMedicines from "./Admin/AdminMedicines";
 import AddMedicine from "./Admin/AddMedicine";
 import EditMedicine from "./Admin/EditMedicine";
+
+import AdminOrders from "./Admin/AdminOrders";
+import AdminOrderDetails from "./Admin/AdminOrderDetails";
 
 export default function AdminDashboard() {
   return (
@@ -28,6 +30,11 @@ export default function AdminDashboard() {
         <Route path="medicines" element={<AdminMedicines />} />
         <Route path="medicines/add" element={<AddMedicine />} />
         <Route path="medicines/edit/:id" element={<EditMedicine />} />
+
+        {/* Admin Order */}
+        <Route path="orders" element={<AdminOrders />} />
+        <Route path="orders/:id" element={<AdminOrderDetails />} />
+
 
       </Route>
     </Routes>

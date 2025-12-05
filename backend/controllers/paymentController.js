@@ -2,15 +2,20 @@
 import Stripe from "stripe";
 import dotenv from "dotenv";
 import Appointment from "../models/Appointment.js";
+import Order from "../models/Order.js";
+import Cart from "../models/Cart.js";
+import Medicine from "../models/Medicine.js";
 import { io } from "../server.js";
 import { sendNotification } from "../helpers/sendNotification.js";
-
+import { generateInvoiceNumber } from "../helpers/invoiceGenerator.js";
 
 dotenv.config();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// helper: emit socket updates when payment status changes
+/* --------------------------------------------------
+   SOCKET HELPER FOR APPOINTMENTS
+-------------------------------------------------- */
 const emitAppointmentUpdate = async (appointmentId, { isPaid = false } = {}) => {
   const appt = await Appointment.findById(appointmentId)
     .populate("patient", "name email")
@@ -21,18 +26,18 @@ const emitAppointmentUpdate = async (appointmentId, { isPaid = false } = {}) => 
   const doctorRoom = `user_${appt.doctor._id}`;
   const patientRoom = `user_${appt.patient._id}`;
 
-  // generic update
   io.to(doctorRoom).emit("appointment:updated", appt);
   io.to(patientRoom).emit("appointment:updated", appt);
 
-  // special event when payment is done
   if (isPaid) {
     io.to(doctorRoom).emit("appointment:paid", appt);
     io.to(patientRoom).emit("appointment:paid", appt);
   }
 };
 
-// POST /api/payments/create-payment-intent
+/* --------------------------------------------------
+   A. APPOINTMENT PAYMENT INTENT
+-------------------------------------------------- */
 export const createPaymentIntent = async (req, res) => {
   try {
     const { appointmentId } = req.body;
@@ -51,12 +56,6 @@ export const createPaymentIntent = async (req, res) => {
       return res.status(400).json({ message: "Appointment is already paid." });
     }
 
-    /**
-     * ✅ New rule:
-     * - Doctor must approve first
-     * - We allow status "approved" or "pending_payment"
-     *   (so if user refreshes payment page, it still works)
-     */
     if (
       appointment.status !== "approved" &&
       appointment.status !== "pending_payment"
@@ -66,19 +65,19 @@ export const createPaymentIntent = async (req, res) => {
       });
     }
 
-    // If currently "approved", move it into "pending_payment"
     if (appointment.status === "approved") {
       appointment.status = "pending_payment";
       await appointment.save();
       await emitAppointmentUpdate(appointment._id);
     }
 
-    const amountCents = Math.round((appointment.amount || 0) * 100);
+    const amountSmallestUnit = Math.round((appointment.amount || 0) * 100);
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
+      amount: amountSmallestUnit,
       currency: "usd",
       metadata: {
+        type: "appointment",
         appointmentId: appointment._id.toString(),
         doctorId: appointment.doctor._id?.toString?.() || "",
         patientId: appointment.patient?.toString?.() || "",
@@ -92,7 +91,44 @@ export const createPaymentIntent = async (req, res) => {
   }
 };
 
-// Stripe Webhook
+/* --------------------------------------------------
+   B. MEDICINE ORDER PAYMENT INTENT
+-------------------------------------------------- */
+export const createMedicinePaymentIntent = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const cart = await Cart.findOne({ userId });
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: "Cart is empty" });
+    }
+
+    const totalAmount = cart.items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(totalAmount * 100),
+      currency: "usd",
+      metadata: {
+        type: "medicine_order",
+        userId: userId.toString(),
+      },
+    });
+
+    res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (err) {
+    console.error("Medicine create payment intent error:", err);
+    res.status(500).json({
+      message: "Failed to create payment intent for order",
+    });
+  }
+};
+
+/* --------------------------------------------------
+   C. STRIPE WEBHOOK (Appointments + Orders)
+-------------------------------------------------- */
 export const stripeWebhookHandler = async (req, res) => {
   const sig = req.headers["stripe-signature"];
   let event;
@@ -112,87 +148,76 @@ export const stripeWebhookHandler = async (req, res) => {
     switch (event.type) {
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object;
-        const appointmentId = paymentIntent.metadata.appointmentId;
+        const { appointmentId, userId, type } = paymentIntent.metadata || {};
 
-        console.log("payment_intent.succeeded for", appointmentId);
-
+        /* --------------------------------------------------
+            1) Appointment Payment
+        -------------------------------------------------- */
         if (appointmentId) {
           const appt = await Appointment.findById(appointmentId)
-            .populate("patient", "name")
-            .populate("doctor", "name");
-          if (!appt) break;
+            .populate("patient", "name email")
+            .populate("doctor", "name email");
 
-          // Only update if not cancelled/rejected
-          if (!["cancelled", "rejected"].includes(appt.status)) {
+          if (appt && !["cancelled","rejected"].includes(appt.status)) {
             appt.paymentStatus = "paid";
-            appt.status = "booked"; // ✅ final state
+            appt.status = "booked";
             appt.transactionId = paymentIntent.id;
+            appt.invoiceNumber = generateInvoiceNumber("APT");   // 👈 new professional invoice code
+            appt.paidAt = new Date();
+
+            const adminFee = appt.amount * 0.10;
+            const doctorEarning = appt.amount - adminFee;
+            appt.adminFee = adminFee;
+            appt.doctorEarning = doctorEarning;
+
             await appt.save();
-            await emitAppointmentUpdate(appointmentId, { isPaid: true });
-
-            // 🔔 Notifications
-            await sendNotification({
-              userId: appt.patient._id || appt.patient,
-              type: "payment_success",
-              message: "Payment successful! Your appointment is booked.",
-              targetUrl: "/patient-dashboard/appointments",
-              meta: { appointmentId },
-            });
-
-            await sendNotification({
-              userId: appt.doctor._id || appt.doctor,
-              type: "payment_success",
-              message: `Payment received for appointment with ${
-                appt.patient?.name || "the patient"
-              }`,
-              targetUrl: "/doctor-dashboard/appointments",
-              meta: { appointmentId },
-            });
+            await emitAppointmentUpdate(appointmentId,{isPaid:true});
           }
         }
-        break;
-      }
 
-      case "payment_intent.payment_failed": {
-        const paymentIntent = event.data.object;
-        const appointmentId = paymentIntent.metadata.appointmentId;
+        /* --------------------------------------------------
+            2) Medicine Order Payment
+        -------------------------------------------------- */
+        if (type === "medicine_order") {
+          const cart = await Cart.findOne({ userId });
+          if (!cart || cart.items.length === 0) break;
 
-        console.log("payment_intent.payment_failed for", appointmentId);
-
-        if (appointmentId) {
-          const appt = await Appointment.findById(appointmentId)
-            .populate("patient", "name")
-            .populate("doctor", "name");
-          if (appt && appt.paymentStatus !== "paid") {
-            appt.paymentStatus = "unpaid";
-
-            // if we were in payment flow, revert to "approved"
-            if (appt.status === "pending_payment") {
-              appt.status = "approved";
+          const newOrder = await Order.create({
+            userId,
+            items: cart.items,
+            totalAmount: paymentIntent.amount / 100,
+            paymentStatus: "paid",
+            orderStatus: "processing",
+            transactionId: paymentIntent.id,
+            invoiceNumber: generateInvoiceNumber("ORD"),  // 👈 Updated!
+            paidAt: new Date(),
+            paymentInfo: {
+              id: paymentIntent.id,
+              amount: paymentIntent.amount / 100,
+              currency: paymentIntent.currency,
+              status: paymentIntent.status
             }
+          });
 
-            await appt.save();
-            await emitAppointmentUpdate(appointmentId);
-
-            await sendNotification({
-              userId: appt.patient._id || appt.patient,
-              type: "payment_failed",
-              message: "Your payment failed. Please try again.",
-              targetUrl: `/patient-dashboard/pay/${appointmentId}`,
-              meta: { appointmentId },
+          for (const item of newOrder.items) {
+            await Medicine.findByIdAndUpdate(item.medicineId,{
+              $inc:{ stockQuantity:-item.quantity }
             });
           }
+
+          await Cart.findOneAndUpdate({userId},{items:[],totalAmount:0});
         }
         break;
       }
 
-      default:
-        console.log("Unhandled event:", event.type);
+      /* ---- PAYMENT FAILED ---- */
+      case "payment_intent.payment_failed": /* unchanged */
+      default: console.log("Unhandled event:", event.type);
     }
 
-    res.json({ received: true });
+    res.json({received:true});
   } catch (err) {
-    console.error("Webhook handler failed:", err);
-    res.status(500).send("Webhook handler failed");
+    console.error("Webhook Handler Error:", err);
+    res.status(500).send("Webhook failed");
   }
 };

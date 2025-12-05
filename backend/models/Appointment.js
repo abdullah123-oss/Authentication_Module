@@ -53,12 +53,19 @@ const appointmentSchema = new mongoose.Schema(
       default: "unpaid",
     },
     amount: {
-      type: Number, // amount in USD (decimal) or cents? We'll treat as dollars here and multiply when creating PI
+      type: Number, // amount in Rupees; Stripe uses the same numeric value (multiplied by 100 for smallest unit)
       default: 0,
     },
     transactionId: {
       type: String, // stripe paymentIntent id, etc
     },
+
+    //Finance Info
+    invoiceNumber: { type: String },  
+    paidAt: { type: Date }, 
+    doctorEarning: { type: Number }, // optional: doctor earnings logic
+    adminFee: { type: Number }, // optional: admin fee logic
+
   },
   { timestamps: true }
 );

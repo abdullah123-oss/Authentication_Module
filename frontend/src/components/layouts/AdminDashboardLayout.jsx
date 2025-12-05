@@ -7,6 +7,7 @@ import {
   FaUsers,
   FaPills,
   FaSignOutAlt,
+  FaBox,
 } from "react-icons/fa";
 import { useAuthStore } from "../../stores/useAuthStore";
 
@@ -57,6 +58,13 @@ export default function AdminDashboardLayout() {
             collapsed={collapsed}
             label="Medicines"
           />
+          <SidebarLink
+            to="/admin-dashboard/orders"
+            icon={<FaBox />}
+            collapsed={collapsed}
+            label="Orders"
+          />
+
         </nav>
 
         {/* Logout */}
